@@ -1,0 +1,6 @@
+Full Name,Contact Email,Cell Phone Number,Company Name,City Location,Lead State,Source Name,Lead Status,Notes
+John Doe,john.doe@example.com,9876543210,GrowEasy,Mumbai,Maharashtra,leads_on_demand,GOOD_LEAD_FOLLOW_UP,Requested a callback for demo
+Sarah Connor,sarah.c@sky.net,9876543211,Cyberdyne,Bangalore,Karnataka,meridian_tower,SALE_DONE,"Client is ready to purchase, secondary contact: 9998887776"
+Raj Patel,,9876543212,Startup Inc,Delhi,Delhi,sarjapur_plots,BAD_LEAD,No email present but valid mobile.
+Invalid Record,no_contact_info_here,,No Phone or Email,Pune,Maharashtra,,,This row has neither phone nor email and should be skipped.
+Priya Singh,priya.singh@example.com,,Enterprise Corp,Pune,Maharashtra,eden_park,DID_NOT_CONNECT,No phone but email is present.
