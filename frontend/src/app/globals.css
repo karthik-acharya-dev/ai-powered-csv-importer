@@ -2,34 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-  }
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-  }
+html, body, button, input, select, textarea {
+  font-family: var(--font-poppins), sans-serif !important;
 }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+/* 
+  Global custom scrollbar styling to ensure all scrollbars 
+  (including sidebar) render with a solid light blue-gray track, 
+  rounded inset thumb, and no scroll buttons/arrows.
+*/
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-/* Custom Scrollbar for tables */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+
+::-webkit-scrollbar-track {
+  background: #eef2f6 !important; /* Solid light gray-blue track */
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important; /* Inset thumb */
+  border-radius: 9999px !important;
+  border: 2px solid #eef2f6 !important; /* Creates the padding around the thumb */
 }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #475569;
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+
+/* Firefox scrollbar compatibility */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #eef2f6;
 }
