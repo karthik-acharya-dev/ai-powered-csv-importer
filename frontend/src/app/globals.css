@@ -8,12 +8,11 @@ html, body, button, input, select, textarea {
 
 /* 
   Global custom scrollbar styling to ensure all scrollbars 
-  (including sidebar) render with a solid light blue-gray track, 
-  rounded inset thumb, and no scroll buttons/arrows.
+  (including sidebar) render with a thin, modern layout.
 */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-button {
@@ -23,21 +22,37 @@ html, body, button, input, select, textarea {
 }
 
 ::-webkit-scrollbar-track {
-  background: #eef2f6 !important; /* Solid light gray-blue track */
+  background: transparent !important; /* Transparent track for modern look */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1 !important; /* Inset thumb */
+  background: #e2e8f0 !important; /* Inset light gray thumb */
   border-radius: 9999px !important;
-  border: 2px solid #eef2f6 !important; /* Creates the padding around the thumb */
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8 !important;
+  background: #cbd5e1 !important;
+}
+
+/* Dark mode scrollbar styles */
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151 !important; /* Dark gray thumb */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563 !important;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent !important;
 }
 
 /* Firefox scrollbar compatibility */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #eef2f6;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.dark * {
+  scrollbar-color: #374151 transparent;
 }

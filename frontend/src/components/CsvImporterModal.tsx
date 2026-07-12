@@ -51,7 +51,13 @@ export default function CsvImporterModal({
       
       const data = response.data.data;
       if (data.length > 0) {
-        setHeaders(Object.keys(data[0]));
+        // Introduce a 4s delay to display the parsing loader animation
+        await new Promise(resolve => setTimeout(resolve, 4000));
+
+        // Use original headers for raw preview (no mapping, matching Step 2 instructions)
+        const rawHeaders = Object.keys(data[0]);
+
+        setHeaders(rawHeaders);
         setRawRecords(data);
         setStep('PREVIEW');
       } else {
@@ -63,6 +69,37 @@ export default function CsvImporterModal({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleDownloadParsedFile = () => {
+    if (!rawRecords || rawRecords.length === 0) return;
+    
+    // Convert rawRecords to CSV format
+    const csvHeaders = headers.join(',');
+    const csvRows = rawRecords.map(row => 
+      headers.map(h => {
+        const val = row[h] === null || row[h] === undefined ? '' : String(row[h]);
+        // Escape double quotes and wrap in quotes if there's a comma, quote or newline
+        const escaped = val.replace(/"/g, '""');
+        if (escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')) {
+          return `"${escaped}"`;
+        }
+        return escaped;
+      }).join(',')
+    );
+    
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create temporary link and trigger download
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', file ? `parsed_${file.name}` : 'parsed_leads.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleConfirmImport = async () => {
@@ -118,207 +155,235 @@ export default function CsvImporterModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className={`bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full transition-all duration-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200
-        ${(step === 'UPLOAD' || step === 'PROCESSING') ? 'max-w-2xl' : 'max-w-5xl'} max-h-[90vh]`}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/60 animate-fade-in">
+      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full transition-all duration-300 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-w-[660px] max-h-[95vh]">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 py-8  dark:border-gray-700">
+        <div className="flex items-center justify-between px-8 pt-8 pb-6 dark:border-gray-800 bg-white dark:bg-gray-900">
           <div>
-            <h2 className="text-xl font-semibold dark:text-white">Import Leads via CSV</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Upload a CSV file to bulk import leads into your system.</p>
+            <h2 className="text-[20px] font-bold text-gray-900 dark:text-white">Import Leads via CSV</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Upload a CSV file to bulk import leads into your system.</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500">
             <X size={20} />
           </button>
         </div>
 
+        {/* Selected File Card */}
+        {file && (
+          <div className="px-8 pt-4 pb-0 bg-white dark:bg-gray-900">
+            <div className="flex items-center gap-4 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full">
+              <div className="w-12 h-12 bg-[#eaf4f2] dark:bg-teal-950/20 border border-[#b2ebd5]/40 dark:border-teal-900 rounded-xl flex flex-col items-center justify-center text-[#1e5b53] dark:text-teal-400 shrink-0 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mb-0.5"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                <span className="text-[9px] font-extrabold tracking-wider leading-none uppercase">CSV</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-[15px] text-gray-900 dark:text-white truncate">{file.name}</h3>
+                <p className="text-xs text-gray-505 dark:text-gray-400 mt-0.5">{file.size} Bytes</p>
+              </div>
+              <button 
+                onClick={() => {
+                  setFile(null);
+                  setRawRecords([]);
+                  setStep('UPLOAD');
+                }}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-450 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Content Body */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-gray-800/50">
+        <div className="flex-1 overflow-y-auto flex flex-col bg-white dark:bg-gray-900 custom-scrollbar">
           
           {step === 'UPLOAD' && (
-            <div className="p-0 flex-1 flex flex-col items-center justify-center">
-              <div 
-                {...getRootProps()} 
-                className={`w-full max-w-xl border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 bg-white dark:bg-gray-800 flex flex-col items-center justify-center
-                  ${isDragActive ? 'border-teal-500 bg-teal-50/30 dark:bg-teal-900/10' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}
-                `}
-              >
-                <input {...getInputProps()} />
-                <div className="w-16 h-16 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-2xl flex items-center justify-center mb-6 text-[#1e5b53] dark:text-teal-400 shrink-0 shadow-sm">
-                  {isUploading ? <Loader2 className="animate-spin text-teal-600" size={24} /> : <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line" aria-hidden="true"><path d="M5 3h14"></path><path d="m18 13-6-6-6 6"></path><path d="M12 7v14"></path></svg>}
-                </div>
-                
-                <h3 className="text-xl font-bold mb-1 text-gray-900 dark:text-white">Drop your CSV file here</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">or click to browse files</p>
-                
-                {/* Info capsule */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-750 rounded-full text-xs font-medium text-gray-500 dark:text-gray-400 mb-4">
-                  <AlertCircle size={14} className="text-gray-400" /> Supported file: .csv (max 5MB)
-                </div>
-
-                {/* Required headers text */}
-                <p className="text-xs text-gray-400 dark:text-gray-550 leading-relaxed text-center max-w-md mb-6">
-                  Required headers: created_at, name, email, country_code, mobile_without_country_code, company, city, state, country, lead_owner, crm_status, crm_note. Template includes default + custom CRM fields to reduce upload errors.
-                </p>
-
-                {/* Download Template Button */}
-                <a 
-                  href="/sample_leads.csv" 
-                  download="sample_leads.csv"
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#eaf4f2] hover:bg-[#d1f2ed] border border-[#1e5b53]/20 text-xs font-bold rounded-xl text-[#1e5b53] transition-colors"
+            <div className="px-8 py-2 flex-1 flex flex-col items-center justify-center">
+              {!file ? (
+                <div 
+                  {...getRootProps()} 
+                  className={`w-full border-2 border-gray-300 border-dashed rounded-2xl p-12 py-12 text-center cursor-pointer transition-all duration-200 bg-white dark:bg-gray-900 flex flex-col items-center justify-center
+                    ${isDragActive ? 'border-[#1e5b53] bg-teal-50/30 dark:bg-teal-900/10' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300'}
+                  `}
                 >
-                  <FileText size={14} /> Download Sample CSV Template
-                </a>
-              </div>
+                  <input {...getInputProps()} />
+                  <div className="w-16 h-16 bg-white dark:bg-gray-800 border border-[#1e5b53]/20 dark:border-gray-700 rounded-2xl flex items-center justify-center mb-6 text-[#1e5b53] dark:text-teal-400 shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                      <path d="m18 9-6-6-6 6" />
+                      <path d="M12 3v14" />
+                      <path d="M5 21h14" />
+                    </svg>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold mb-1 text-gray-900 dark:text-white">Drop your CSV file here</h3>
+                  <p className="text-sm text-gray-550 dark:text-gray-455 mb-6">or click to browse files</p>
+                  
+                  {/* Info capsule */}
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-250 dark:border-gray-750 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                    <AlertCircle size={14} className="text-gray-450 dark:text-gray-555" /> Supported file: .csv (max 5MB)
+                  </div>
+
+                  {/* Required headers text */}
+                  <p className="text-[11px] text-gray-500 dark:text-gray-500 leading-relaxed text-center max-w-sm mb-4 max-w-[460px]">
+                    Required headers: created_at, name, email, country_code, mobile_without_country_code, company, city, state, country, lead_owner, crm_status, crm_note. Template includes default + custom CRM fields to reduce upload errors.
+                  </p>
+
+                  {/* Download Template Button */}
+                  <a 
+                    href="/sample_leads.csv" 
+                    download="sample_leads.csv"
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#eaf4f2] hover:bg-[#d1f2ed] border border-[#1e5b53]/20 text-xs font-bold rounded-xl text-[#1e5b53] transition-colors"
+                  >
+                    <FileText size={14} /> Download Sample CSV Template
+                  </a>
+                </div>
+              ) : (
+                <div className="w-full flex-1 flex flex-col items-center justify-center py-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl">
+                  <div className="relative w-8 h-8 mb-4">
+                    <div className="w-8 h-8 border-[3px] border-gray-100 dark:border-gray-800 rounded-full"></div>
+                    <div className="absolute top-0 left-0 w-8 h-8 border-[3px] border-[#1e5b53] dark:border-teal-400 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <p className="text-[14px] font-bold text-gray-550 dark:text-gray-400 text-center">AI is parsing your uploaded file...</p>
+                </div>
+              )}
             </div>
           )}
 
           {step === 'PREVIEW' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* File details card matching ref2.png */}
-              <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <div className="flex items-center gap-3 p-3 bg-[#f3faf8] dark:bg-gray-700/50 border border-[#d1f2ec] dark:border-gray-600 rounded-xl w-full">
-                  <div className="w-10 h-10 bg-[#e6f7f5] text-teal-700 rounded-lg flex items-center justify-center shrink-0">
-                    <FileText size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">{file?.name}</h3>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{(file?.size ? file.size / 1024 : 0).toFixed(2)} KB</p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setFile(null);
-                      setRawRecords([]);
-                      setStep('UPLOAD');
-                    }}
-                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                  >
-                    <X size={16} />
-                  </button>
+            <div className="flex-1 flex flex-col overflow-hidden pb-2">
+              <div className="px-8 mt-4 mb-2">
+                <div className="text-[12px] font-bold text-gray-600 dark:text-teal-400 uppercase tracking-wider">
+                  Preview (upto first 30 rows)
                 </div>
               </div>
               
-              {/* Virtualized Table */}
-              <div ref={parentRef} className="flex-1 overflow-auto custom-scrollbar bg-white dark:bg-gray-900">
-                <div 
-                  className="min-w-full"
-                  style={{
-                    width: `${headers.length * 200}px`
-                  }}
-                >
-                  {/* Sticky Header */}
-                  <div className="sticky top-0 bg-gray-50 dark:bg-gray-800 shadow-sm z-10 flex border-b dark:border-gray-700">
-                    {headers.map(h => (
-                      <div 
-                        key={h} 
-                        className="w-[200px] shrink-0 px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs tracking-wider truncate"
-                      >
-                        {h}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Virtualized Body */}
-                  <div
-                    className="relative"
-                    style={{
-                      height: `${rowVirtualizer.getTotalSize()}px`,
-                    }}
-                  >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const row = rawRecords[virtualRow.index];
-                      return (
-                        <div
-                          key={virtualRow.index}
-                          className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 absolute top-0 left-0 flex items-center"
-                          style={{
-                            height: `${virtualRow.size}px`,
-                            width: '100%',
-                            transform: `translateY(${virtualRow.start}px)`,
-                          }}
-                        >
+              <div className="px-8 flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-auto border border-gray-250 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 custom-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+                    <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 border-b border-gray-200 dark:border-gray-800 z-10">
+                      <tr>
+                        {headers.map(h => (
+                          <th key={h} className="px-4 py-2 font-bold text-gray-900 dark:text-white uppercase tracking-wider whitespace-nowrap">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-150 dark:divide-gray-800">
+                      {rawRecords.slice(0, 30).map((row, rIndex) => (
+                        <tr key={rIndex} className="hover:bg-gray-55/50 dark:hover:bg-gray-900/50">
                           {headers.map(h => (
-                            <div 
-                              key={h} 
-                              className="w-[200px] shrink-0 px-4 py-3 text-gray-700 dark:text-gray-300 truncate text-sm"
-                            >
+                            <td key={h} className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">
                               {row[h] || ''}
-                            </div>
+                            </td>
                           ))}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
+              </div>
+
+              <div className="flex justify-center mt-3">
+                <button 
+                  type="button" 
+                  onClick={handleDownloadParsedFile}
+                  className="text-[#1e5b53] dark:text-teal-400 font-bold text-xs flex items-center gap-1.5 hover:underline"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" x2="21" y1="14" y2="3" />
+                  </svg>
+                  View Parsed File
+                </button>
               </div>
             </div>
           )}
 
           {step === 'PROCESSING' && (
-            <div className="flex-1 flex flex-col items-center justify-center p-12">
-              <Loader2 className="w-16 h-16 text-groweasy animate-spin mb-6" />
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">AI is Extracting Data</h3>
-              <p className="text-gray-500 text-center max-w-sm mb-8">
-                Our AI model is intelligently mapping your custom CSV columns to GrowEasy CRM fields.
-              </p>
-              
-              <div className="w-full max-w-md bg-gray-200 dark:bg-gray-700 rounded-full h-3 mb-2 overflow-hidden">
-                <div 
-                  className="bg-groweasy h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
+            <div className="px-8 py-2 flex-1 flex flex-col justify-center">
+              <div className="w-full flex-1 flex flex-col items-center justify-center py-16 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl">
+                <div className="relative w-8 h-8 mb-4">
+                  <div className="w-8 h-8 border-[3px] border-gray-100 dark:border-gray-800 rounded-full"></div>
+                  <div className="absolute top-0 left-0 w-8 h-8 border-[3px] border-[#1e5b53] dark:border-teal-400 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <p className="text-[14px] font-bold text-gray-550 dark:text-gray-400 text-center mb-6">AI is Extracting Data</p>
+                
+                <div className="w-full max-w-[200px] bg-gray-100 dark:bg-gray-850 rounded-full h-2 mb-2 overflow-hidden">
+                  <div 
+                    className="bg-[#FA5A3C] h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs font-semibold text-gray-450 dark:text-gray-400">{progress}% Processed</p>
               </div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{progress}% Processed</p>
             </div>
           )}
 
           {step === 'RESULT' && (
-            <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
-              <div className="p-6 border-b dark:border-gray-800 grid grid-cols-2 gap-4">
-                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800">
-                  <div className="flex items-center gap-2 text-green-600 mb-1">
-                    <CheckCircle2 size={18} /> <span className="font-semibold">Successfully Mapped</span>
+            <div className="flex-1 flex flex-col overflow-hidden pb-2 bg-white dark:bg-gray-900">
+              <div className="px-8 mt-2 mb-4 grid grid-cols-2 gap-4">
+                <div className="bg-[#f3faf8] dark:bg-green-950/20 p-3 rounded-2xl border border-[#d1f2ec] dark:border-green-900/30 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-extrabold text-[#1e5b53] dark:text-teal-400 uppercase tracking-wider mb-0.5">Successfully Mapped</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white">{extractedData.success.length}</div>
                   </div>
-                  <div className="text-3xl font-bold text-green-700 dark:text-green-500">{extractedData.success.length}</div>
+                  <CheckCircle2 size={24} className="text-[#1e5b53] dark:text-teal-450 shrink-0" />
                 </div>
-                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
-                  <div className="flex items-center gap-2 text-red-600 mb-1">
-                    <AlertCircle size={18} /> <span className="font-semibold">Skipped (Invalid)</span>
+                <div className="bg-red-50/50 dark:bg-red-950/20 p-3 rounded-2xl border border-red-100 dark:border-red-900/30 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-extrabold text-red-650 dark:text-red-400 uppercase tracking-wider mb-0.5">Skipped (Invalid)</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white">{extractedData.skipped.length}</div>
                   </div>
-                  <div className="text-3xl font-bold text-red-700 dark:text-red-500">{extractedData.skipped.length}</div>
+                  <AlertCircle size={24} className="text-red-500 dark:text-red-450 shrink-0" />
                 </div>
               </div>
               
-              <div className="flex-1 overflow-auto custom-scrollbar p-6">
-                <h4 className="font-semibold mb-4 dark:text-white">Extracted CRM Records (Preview)</h4>
-                <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-gray-50 dark:bg-gray-800">
+              <div className="px-8 mt-2 mb-2">
+                <div className="text-[10px] font-extrabold text-[#1e5b53] dark:text-teal-400 uppercase tracking-wider">
+                  Extracted CRM Records (Preview)
+                </div>
+              </div>
+
+              <div className="px-8 flex-1 overflow-hidden flex flex-col">
+                <div className="flex-1 overflow-auto border border-gray-250 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-950 custom-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+                    <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 border-b border-gray-200 dark:border-gray-800 z-10">
                       <tr>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Name</th>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Email</th>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Mobile</th>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Status</th>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Source</th>
-                        <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300">Notes</th>
+                        {[
+                          'CREATED_AT', 'NAME', 'EMAIL', 'COUNTRY_CODE', 'MOBILE_WITHOUT_COUNTRY_CODE',
+                          'COMPANY', 'CITY', 'STATE', 'COUNTRY', 'LEAD_OWNER', 'CRM_STATUS', 'CRM_NOTE'
+                        ].map(h => (
+                          <th key={h} className="px-4 py-2.5 font-bold text-gray-900 dark:text-white uppercase tracking-wider whitespace-nowrap">
+                            {h}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {extractedData.success.slice(0, 50).map((row, i) => (
-                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="px-4 py-3 dark:text-gray-300">{row.name || '-'}</td>
-                          <td className="px-4 py-3 dark:text-gray-300">{row.email || '-'}</td>
-                          <td className="px-4 py-3 dark:text-gray-300">{row.mobile_without_country_code || '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs rounded-full">
-                              {row.crm_status || 'UNMAPPED'}
-                            </span>
+                    <tbody className="divide-y divide-gray-150 dark:divide-gray-800">
+                      {extractedData.success.slice(0, 30).map((row, rIndex) => (
+                        <tr key={rIndex} className="hover:bg-gray-55/50 dark:hover:bg-gray-900/50">
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.created_at || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap font-semibold">{row.name || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.email || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.country_code || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.mobile_without_country_code || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.company || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.city || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.state || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.country || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">{row.lead_owner || ''}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap">
+                            {row.crm_status ? (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold rounded-full">
+                                {row.crm_status}
+                              </span>
+                            ) : ''}
                           </td>
-                          <td className="px-4 py-3 dark:text-gray-300">{row.data_source || '-'}</td>
-                          <td className="px-4 py-3 dark:text-gray-300 truncate max-w-xs" title={row.crm_note}>{row.crm_note || '-'}</td>
+                          <td className="px-4 py-3.5 text-gray-750 dark:text-gray-300 whitespace-nowrap max-w-xs truncate" title={row.crm_note}>{row.crm_note || ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -333,47 +398,56 @@ export default function CsvImporterModal({
 
         </div>
 
-      {/* Footer Actions */}
-      <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex justify-end gap-3 shrink-0">
+    {/* Footer Actions */}
+    <div className="px-8 pb-8 pt-4 bg-white dark:bg-gray-900 shrink-0 grid grid-cols-2 gap-4">
+      <button 
+        onClick={onClose}
+        className="w-full py-4 border border-gray-250 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-200 font-bold rounded-2xl text-[15px] transition-all text-center"
+      >
+        Cancel
+      </button>
+      
+      {step === 'UPLOAD' && (
         <button 
-          onClick={onClose}
-          className="px-10 py-3 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-200 font-bold rounded-2xl text-[15px] transition-all"
+          disabled
+          className="w-full py-4 bg-[#FA5A3C]/50 text-white font-bold rounded-2xl text-[15px] cursor-not-allowed text-center"
         >
-          Cancel
+          Upload File
         </button>
-        
-        {step === 'UPLOAD' && (
-          <button 
-            disabled
-            className="px-10 py-3 bg-[#FA5A3C]/40 text-white font-bold rounded-2xl text-[15px] cursor-not-allowed opacity-70"
-          >
-            Upload File
-          </button>
-        )}
+      )}
 
-        {step === 'PREVIEW' && (
-          <button 
-            onClick={handleConfirmImport}
-            className="px-10 py-3 bg-[#FA5A3C] hover:bg-[#E5482B] text-white font-bold rounded-2xl text-[15px] transition-all shadow-sm"
-          >
-            Upload File
-          </button>
-        )}
-        
-        {step === 'RESULT' && (
-          <button 
-            onClick={() => {
-              if (onImportSuccess) {
-                onImportSuccess(extractedData.success);
-              }
-              onClose();
-            }}
-            className="px-10 py-3 bg-[#FA5A3C] hover:bg-[#E5482B] text-white font-bold rounded-2xl text-[15px] transition-all shadow-sm"
-          >
-            Done
-          </button>
-        )}
-      </div>
+      {step === 'PREVIEW' && (
+        <button 
+          onClick={handleConfirmImport}
+          className="w-full py-4 bg-[#FA5A3C] hover:bg-[#E5482B] text-white font-bold rounded-2xl text-[15px] transition-all shadow-sm text-center"
+        >
+          Upload File
+        </button>
+      )}
+
+      {step === 'PROCESSING' && (
+        <button 
+          disabled
+          className="w-full py-4 bg-[#FA5A3C]/50 text-white font-bold rounded-2xl text-[15px] cursor-not-allowed text-center"
+        >
+          Upload File
+        </button>
+      )}
+      
+      {step === 'RESULT' && (
+        <button 
+          onClick={() => {
+            if (onImportSuccess) {
+              onImportSuccess(extractedData.success);
+            }
+            onClose();
+          }}
+          className="w-full py-4 bg-[#FA5A3C] hover:bg-[#E5482B] text-white font-bold rounded-2xl text-[15px] transition-all shadow-sm text-center"
+        >
+          Done
+        </button>
+      )}
+    </div>
 
       </div>
     </div>

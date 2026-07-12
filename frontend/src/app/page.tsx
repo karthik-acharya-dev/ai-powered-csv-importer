@@ -12,6 +12,7 @@ export default function LeadSourcesDashboard() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('LEAD_SOURCES');
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -19,7 +20,10 @@ export default function LeadSourcesDashboard() {
 
   const handleImportSuccess = () => {
     setIsImporterOpen(false);
-    alert('CSV Leads imported successfully!');
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3500);
   };
 
   return (
@@ -187,6 +191,16 @@ export default function LeadSourcesDashboard() {
           onClose={() => setIsImporterOpen(false)} 
           onImportSuccess={handleImportSuccess}
         />
+      )}
+
+      {/* Snackbar Success Toast */}
+      {showToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1e5b53] dark:bg-[#1a4a44] text-white font-bold text-sm px-6 py-3.5 rounded-2xl shadow-xl flex items-center gap-2.5 border border-teal-500/20 animate-in slide-in-from-top-4 duration-300">
+          <svg className="w-5 h-5 shrink-0 text-teal-300" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          CSV Leads imported successfully!
+        </div>
       )}
     </div>
   );

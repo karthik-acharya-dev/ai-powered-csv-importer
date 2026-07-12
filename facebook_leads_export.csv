@@ -1,0 +1,4 @@
+created_time,full_name,email_address,phone_num,company_name,status_info
+2026-07-10 09:15:00,John Smith,john.smith@fb.com,+15550199,Smith Consulting,GOOD_LEAD_FOLLOW_UP
+2026-07-10 10:20:00,Alice Brown,alice.b@gmail.com,+919988776655,Brown Logics,DID_NOT_CONNECT
+2026-07-10 11:30:00,Invalid Record,,,No Contacts Corp,BAD_LEAD
